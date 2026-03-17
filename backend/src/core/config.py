@@ -39,7 +39,19 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = "gpt-4o"
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
-    
+
+    # Gmail API Configuration
+    GMAIL_ENABLED: bool = True
+    GMAIL_CLIENT_ID: str = ""
+    GMAIL_CLIENT_SECRET: str = ""
+    GMAIL_REDIRECT_URI: str = "http://localhost:8000/webhooks/gmail/callback"
+    GMAIL_CREDENTIALS_PATH: str = "./secrets/credentials.json"
+
+    # Twilio WhatsApp Configuration
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_WHATSAPP_NUMBER: str = "whatsapp:+14155238886"
+
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 60
     RATE_LIMIT_PER_HOUR: int = 1000

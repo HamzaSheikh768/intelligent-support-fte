@@ -6,11 +6,11 @@ pydantic==2.5.3
 pydantic-settings==2.1.0
 email-validator==2.1.0
 
-# Database
+# Database (with async support)
 sqlmodel==0.0.14
 asyncpg==0.29.0
-psycopg2-binary==2.9.9
 alembic==1.13.1
+sqlalchemy==2.0.25
 
 # OpenAI Agents SDK
 openai==1.12.0
@@ -48,6 +48,3 @@ python-json-logger==2.0.7
 
 # Utilities
 python-dotenv==1.0.0
-
-# SQLAlchemy (required by SQLModel)
-sqlalchemy==2.0.25

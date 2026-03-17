@@ -8,18 +8,32 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import sessionmaker
 from ..core.config import settings
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
 
+# Fix DATABASE_URL for asyncpg compatibility
+def get_asyncpg_url():
+    """Get DATABASE_URL fixed for asyncpg."""
+    url = settings.DATABASE_URL
+    if 'asyncpg' not in url:
+        url = url.replace('postgresql://', 'postgresql+asyncpg://')
+    # Remove query params that asyncpg doesn't support
+    if '?' in url:
+        url = url.split('?')[0]
+    return url
+
+
 # Create async engine
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    get_asyncpg_url(),
     echo=settings.is_development,  # Log SQL queries in development
     pool_pre_ping=True,  # Verify connections before use
     pool_size=10,  # Number of connections to keep open
     max_overflow=20,  # Additional connections allowed
     pool_recycle=3600,  # Recycle connections after 1 hour
+    connect_args={'ssl': True},  # SSL for Neon
 )
 
 
