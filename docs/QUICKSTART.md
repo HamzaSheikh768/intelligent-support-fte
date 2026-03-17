@@ -1,310 +1,321 @@
-# Customer Success FTE - Quick Start Guide
+# Quick Start Guide - Customer Success FTE
 
-## Prerequisites
-
-Make sure you have the following installed:
-
-- **Node.js 18+**: [Download](https://nodejs.org/)
-- **npm** (comes with Node.js)
-- **Docker Desktop** (optional, for full stack)
+**Last Updated**: 2026-03-17
 
 ---
 
-## Quick Start (Frontend Only)
+## 🚀 Option 1: Using Docker (Recommended)
 
-### Option 1: Using the Startup Script (Windows)
+### Prerequisites
+- Docker Desktop installed and running
+- Git (optional)
 
-1. Double-click `start-frontend.bat`
-2. Wait for dependencies to install
-3. Frontend will start automatically at http://localhost:3000
+### Steps
 
-### Option 2: Manual Setup
+```powershell
+# 1. Navigate to project root
+cd "E:\Hackathon 5\CRM-Digital-FTE-Factory"
 
-```bash
-# Navigate to frontend directory
-cd frontend
+# 2. Start all services
+docker compose up -d
 
-# Install dependencies
-npm install
+# 3. Check status
+docker compose ps
 
-# Start development server
-npm run dev
+# 4. View logs
+docker compose logs -f
+
+# 5. Access services
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+# Health: http://localhost:8000/health
 ```
 
-Access at: **http://localhost:3000**
+### Common Docker Commands
+
+```powershell
+# Stop all services
+docker compose down
+
+# Rebuild and restart
+docker compose up -d --build
+
+# View specific service logs
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f postgres
+
+# Access backend shell
+docker compose exec backend bash
+
+# Access database
+docker compose exec postgres psql -U fte_user -d fte_db
+
+# Restart a service
+docker compose restart backend
+```
 
 ---
 
-## Full Stack (with Docker)
+## 🐍 Option 2: Local Python Development
 
-### Start All Services
+### Prerequisites
+- Python 3.11 or 3.12 (Python 3.13 has compatibility issues)
+- Node.js 18+
+- PostgreSQL 16 with pgvector
+- Kafka (optional for full functionality)
 
-```bash
-# Copy environment file
-cp .env.example .env
+### Backend Setup
 
-# Edit .env and add your OPENROUTER_API_KEY
+```powershell
+# 1. Navigate to backend
+cd "E:\Hackathon 5\CRM-Digital-FTE-Factory\backend"
 
-# Start all services
-docker-compose up -d
+# 2. Create virtual environment
+python -m venv venv
 
-# View logs
-docker-compose logs -f
-```
+# 3. Activate virtual environment
+.\venv\Scripts\Activate.ps1  # PowerShell
+# or
+.\venv\Scripts\activate.bat  # CMD
 
-### Access Services
+# 4. Upgrade pip
+python -m pip install --upgrade pip
 
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:8000 |
-| API Docs (Swagger) | http://localhost:8000/docs |
-| Health Check | http://localhost:8000/health |
-
----
-
-## Test Form Submission
-
-### 1. Via Web Interface
-
-1. Open http://localhost:3000
-2. Fill out the support form
-3. Submit and verify ticket ID is shown
-
-### 2. Via API (curl)
-
-```bash
-curl -X POST http://localhost:8000/api/v1/support/submit \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"name\": \"Test User\",
-    \"email\": \"test@example.com\",
-    \"subject\": \"Test Subject\",
-    \"category\": \"technical\",
-    \"priority\": \"medium\",
-    \"message\": \"This is a test message with more than 10 characters\"
-  }"
-```
-
-Expected response:
-```json
-{
-  "ticket_id": "uuid-here",
-  "message": "Thank you for contacting us! Our AI assistant will respond shortly.",
-  "estimated_response_time": "Usually within 5 minutes"
-}
-```
-
-### 3. Via API Docs
-
-1. Open http://localhost:8000/docs
-2. Click on `POST /api/v1/support/submit`
-3. Click "Try it out"
-4. Fill in the form
-5. Click "Execute"
-
----
-
-## Troubleshooting
-
-### Frontend Won't Start
-
-**Error: Module not found**
-```bash
-cd frontend
-rm -rf node_modules package-lock.json
-npm install
-```
-
-**Error: Port 3000 already in use**
-```bash
-# Kill process on port 3000 (Windows)
-netstat -ano | findstr :3000
-taskkill /PID <PID> /F
-
-# Or change port in package.json
-npm run dev -- -p 3001
-```
-
-### Backend Won't Start
-
-**Error: Database connection failed**
-```bash
-# Make sure PostgreSQL is running
-docker-compose up postgres
-
-# Check database URL in .env
-DATABASE_URL=postgresql+asyncpg://fte_user:fte_password@postgres:5432/fte_db
-```
-
-**Error: Module not found**
-```bash
-cd backend
+# 5. Install dependencies
 pip install -r requirements.txt
+
+# 6. Create .env file (if not exists)
+notepad .env
+
+# Add this content to .env:
+# DATABASE_URL=postgresql+asyncpg://fte_user:fte_password@localhost:5432/fte_db
+# OPENROUTER_API_KEY=sk-or-your-api-key
+# OPENROUTER_MODEL=gpt-4o
+# KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+
+# 7. Start backend server
+python -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+
+# Access at: http://localhost:8000
+# API Docs: http://localhost:8000/docs
 ```
 
-### Docker Issues
+### Frontend Setup
 
-**Containers won't start**
-```bash
-# Stop all containers
-docker-compose down
+```powershell
+# 1. Navigate to frontend
+cd "E:\Hackathon 5\CRM-Digital-FTE-Factory\frontend"
 
-# Remove volumes (WARNING: deletes data)
-docker-compose down -v
+# 2. Install dependencies
+npm install
 
-# Start fresh
-docker-compose up -d
-```
-
-**Check logs**
-```bash
-docker-compose logs -f
-```
-
----
-
-## Verify Installation
-
-### Frontend Checklist
-
-- [ ] http://localhost:3000 loads
-- [ ] Support form is visible
-- [ ] All form fields render correctly
-- [ ] Form validation works (try submitting empty form)
-- [ ] File upload shows preview for images
-- [ ] Character counter shows for message field
-
-### Backend Checklist
-
-- [ ] http://localhost:8000/health returns healthy status
-- [ ] http://localhost:8000/docs shows API documentation
-- [ ] POST /api/v1/support/submit creates ticket
-- [ ] GET /api/v1/support/ticket/{id} returns ticket status
-
-### Database Checklist
-
-```bash
-# Connect to PostgreSQL
-docker-compose exec postgres psql -U fte_user -d fte_db
-
-# List tables
-\dt
-
-# Should see:
-# - customers
-# - tickets
-# - conversations
-# - messages
-# - knowledge_base
-# - agent_metrics
-```
-
----
-
-## Next Steps
-
-1. ✅ Frontend running at http://localhost:3000
-2. ✅ Backend running at http://localhost:8000
-3. ✅ Database initialized with schema
-
-### What to Test Next
-
-1. **Submit a support request**
-   - Fill all required fields
-   - Verify ticket ID is shown
-   - Check success message
-
-2. **Test file upload**
-   - Upload an image (should show thumbnail)
-   - Upload a PDF (should show file icon)
-   - Try uploading 4 files (should show error)
-
-3. **Test auto-save**
-   - Start filling the form
-   - Close browser tab
-   - Reopen and verify draft is loaded
-
-4. **Test validation**
-   - Submit empty form (should show errors)
-   - Enter invalid email (should show error)
-   - Enter short message (should show error)
-
-5. **Test accessibility**
-   - Navigate with Tab key
-   - Press Escape to close modal
-   - Test with screen reader (optional)
-
----
-
-## Development Commands
-
-### Frontend
-
-```bash
-# Development server
+# 3. Start development server
 npm run dev
+
+# Access at: http://localhost:3000
+```
+
+### Production Build (Frontend)
+
+```powershell
+cd frontend
 
 # Build for production
 npm run build
 
 # Start production server
 npm start
-
-# Run linter
-npm run lint
-
-# Type check
-npm run typecheck
-```
-
-### Backend
-
-```bash
-# Development server
-uvicorn src.main:app --reload
-
-# Production server
-uvicorn src.main:app --host 0.0.0.0 --port 8000
-
-# Run tests
-pytest
-
-# Run linter
-ruff check src/
-
-# Format code
-black src/
-```
-
-### Docker
-
-```bash
-# Start all services
-docker-compose up -d
-
-# Stop all services
-docker-compose down
-
-# View logs
-docker-compose logs -f
-
-# Rebuild containers
-docker-compose up -d --build
-
-# Remove everything (including volumes)
-docker-compose down -v
 ```
 
 ---
 
-## Support
+## 🛠️ Troubleshooting
 
-**Documentation**: See `docs/` folder  
-**API Docs**: http://localhost:8000/docs  
-**Issues**: Check `specs/001-web-support-form/IMPLEMENTATION-COMPLETE.md`
+### Docker Issues
+
+#### Container won't start
+```powershell
+# Check Docker is running
+docker ps
+
+# If not, start Docker Desktop
+Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+
+# Wait 30 seconds, then try again
+docker compose up -d
+```
+
+#### Port already in use
+```powershell
+# Find process using port 8000
+netstat -ano | findstr :8000
+
+# Kill the process (replace PID)
+taskkill /PID <PID> /F
+
+# Or change port in docker-compose.yml
+```
+
+#### Database connection failed
+```powershell
+# Check PostgreSQL is running
+docker compose ps postgres
+
+# Restart PostgreSQL
+docker compose restart postgres
+
+# Check logs
+docker compose logs postgres
+```
+
+### Local Python Issues
+
+#### asyncpg error (Python 3.13)
+```powershell
+# Python 3.13 has compatibility issues
+# Use Python 3.11 or 3.12 instead
+
+# Or use Docker (recommended)
+docker compose up -d
+```
+
+#### Module not found
+```powershell
+# Reinstall dependencies
+pip install -r requirements.txt --force-reinstall
+
+# Clear cache
+Get-ChildItem -Recurse __pycache__ | Remove-Item -Recurse -Force
+```
+
+#### DATABASE_URL error
+```powershell
+# Make sure .env file has correct URL:
+# DATABASE_URL=postgresql+asyncpg://fte_user:fte_password@localhost:5432/fte_db
+
+# NOT:
+# DATABASE_URL=postgresql://... (missing asyncpg)
+# DATABASE_URL=postgresql+psycopg2://... (wrong driver)
+```
+
+### Frontend Issues
+
+#### Module not found
+```powershell
+cd frontend
+
+# Clear and reinstall
+rm -rf node_modules package-lock.json
+npm install
+```
+
+#### Build fails
+```powershell
+cd frontend
+
+# Clear cache
+npm cache clean --force
+
+# Reinstall
+rm -rf node_modules package-lock.json
+npm install
+
+# Rebuild
+npm run build
+```
 
 ---
 
-**Last Updated**: 2026-03-12  
-**Version**: 1.0.0
+## ✅ Verification
+
+### Test Backend
+
+```powershell
+# Health check
+curl http://localhost:8000/health
+
+# Expected output:
+# {"status":"healthy","timestamp":"...","environment":"development",...}
+```
+
+### Test Frontend
+
+Open browser: http://localhost:3000
+
+You should see the support form.
+
+### Test API
+
+```powershell
+# Submit support ticket
+curl -X POST http://localhost:8000/api/v1/support/submit `
+  -H "Content-Type: application/json" `
+  -d '{
+    "name": "Test User",
+    "email": "test@example.com",
+    "subject": "Test Issue",
+    "category": "technical",
+    "priority": "medium",
+    "message": "This is a test message"
+  }'
+
+# Expected output:
+# {"ticket_id":"...","message":"Thank you...","estimated_response_time":"..."}
+```
+
+---
+
+## 📊 Architecture
+
+```
+┌─────────────────────────────────────────┐
+│         Customer Success FTE            │
+├─────────────────────────────────────────┤
+│                                         │
+│  Frontend (Next.js 16)                  │
+│  http://localhost:3000                  │
+│                                         │
+│  Backend (FastAPI + SQLModel)           │
+│  http://localhost:8000                  │
+│                                         │
+│  Database (PostgreSQL + pgvector)       │
+│  localhost:5432                         │
+│                                         │
+│  Streaming (Kafka)                      │
+│  localhost:9092                         │
+│                                         │
+│  AI Agent (OpenRouter API)              │
+│  gpt-4o                                 │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## 📚 Next Steps
+
+1. ✅ **Setup Complete** - Services running
+2. 📝 **Add OpenRouter API Key** - Edit `.env` file
+3. 🧪 **Test Application** - Submit support ticket
+4. 📊 **Monitor Logs** - Check for errors
+5. 🚀 **Deploy to Production** - Follow deployment guide
+
+---
+
+## 🔗 Additional Resources
+
+- [Full Setup Guide](SETUP-GUIDE.md)
+- [API Documentation](docs/API.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [Operations Runbook](docs/RUNBOOK.md)
+
+---
+
+**Need Help?** Check the troubleshooting section or view logs:
+- Docker: `docker compose logs -f`
+- Backend: `tail -f backend/logs/app.log`
+- Frontend: Check browser console
+
+**Happy Coding! 🎉**
