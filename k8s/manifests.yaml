@@ -1,0 +1,280 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: customer-success-fte
+  labels:
+    app: customer-success-fte
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fte-config
+  namespace: customer-success-fte
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka.kafka.svc.cluster.local:9092"
+  POSTGRES_HOST: "postgres.customer-success-fte.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "fte_db"
+  POSTGRES_USER: "fte_user"
+  OPENROUTER_MODEL: "gpt-4o"
+  OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1"
+  # Channel configs
+  GMAIL_ENABLED: "true"
+  WHATSAPP_ENABLED: "true"
+  WEBFORM_ENABLED: "true"
+  # Response limits
+  MAX_EMAIL_LENGTH: "2000"
+  MAX_WHATSAPP_LENGTH: "1600"
+  MAX_WEBFORM_LENGTH: "1000"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fte-secrets
+  namespace: customer-success-fte
+type: Opaque
+stringData:
+  OPENROUTER_API_KEY: "${OPENROUTER_API_KEY}"
+  POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+  # Gmail credentials (base64 encoded JSON)
+  GMAIL_CREDENTIALS: "${GMAIL_CREDENTIALS_JSON}"
+  # Twilio credentials
+  TWILIO_ACCOUNT_SID: "${TWILIO_ACCOUNT_SID}"
+  TWILIO_AUTH_TOKEN: "${TWILIO_AUTH_TOKEN}"
+  TWILIO_WHATSAPP_NUMBER: "${TWILIO_WHATSAPP_NUMBER}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fte-api
+  namespace: customer-success-fte
+  labels:
+    app: customer-success-fte
+    component: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: customer-success-fte
+      component: api
+  template:
+    metadata:
+      labels:
+        app: customer-success-fte
+        component: api
+    spec:
+      containers:
+      - name: fte-api
+        image: your-registry/customer-success-fte:latest
+        command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: fte-config
+        - secretRef:
+            name: fte-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: gmail-credentials
+          mountPath: /app/secrets
+          readOnly: true
+      volumes:
+      - name: gmail-credentials
+        secret:
+          secretName: fte-secrets
+          items:
+          - key: GMAIL_CREDENTIALS
+            path: gmail-credentials.json
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fte-message-processor
+  namespace: customer-success-fte
+  labels:
+    app: customer-success-fte
+    component: message-processor
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: customer-success-fte
+      component: message-processor
+  template:
+    metadata:
+      labels:
+        app: customer-success-fte
+        component: message-processor
+    spec:
+      containers:
+      - name: message-processor
+        image: your-registry/customer-success-fte:latest
+        command: ["python", "-m", "src.workers.message_processor"]
+        envFrom:
+        - configMapRef:
+            name: fte-config
+        - secretRef:
+            name: fte-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - pgrep
+            - -f
+            - message_processor
+          initialDelaySeconds: 30
+          periodSeconds: 30
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fte-metrics-collector
+  namespace: customer-success-fte
+  labels:
+    app: customer-success-fte
+    component: metrics-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: customer-success-fte
+      component: metrics-collector
+  template:
+    metadata:
+      labels:
+        app: customer-success-fte
+        component: metrics-collector
+    spec:
+      containers:
+      - name: metrics-collector
+        image: your-registry/customer-success-fte:latest
+        command: ["python", "-m", "src.workers.metrics_collector"]
+        envFrom:
+        - configMapRef:
+            name: fte-config
+        - secretRef:
+            name: fte-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: customer-success-fte
+  namespace: customer-success-fte
+  labels:
+    app: customer-success-fte
+spec:
+  selector:
+    app: customer-success-fte
+    component: api
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: customer-success-fte
+  namespace: customer-success-fte
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - support-api.yourdomain.com
+    secretName: fte-tls
+  rules:
+  - host: support-api.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: customer-success-fte
+            port:
+              number: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fte-api-hpa
+  namespace: customer-success-fte
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fte-api
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fte-worker-hpa
+  namespace: customer-success-fte
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fte-message-processor
+  minReplicas: 3
+  maxReplicas: 30
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
