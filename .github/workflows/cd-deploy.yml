@@ -6,10 +6,31 @@ on:
   workflow_dispatch:
 
 jobs:
+  check-deployment-readiness:
+    runs-on: ubuntu-latest
+    outputs:
+      has-kube-config: ${{ steps.check-secrets.outputs.has-kube-config }}
+    steps:
+      - name: Check for KUBE_CONFIG secret
+        id: check-secrets
+        run: |
+          if [ -z "${{ secrets.KUBE_CONFIG }}" ]; then
+            echo "has-kube-config=false" >> $GITHUB_OUTPUT
+            echo "::notice::KUBE_CONFIG secret is not set. Deployment will be skipped."
+            echo "📝 To enable deployments:"
+            echo "   1. Go to Settings → Secrets and variables → Actions → New repository secret"
+            echo "   2. Name: KUBE_CONFIG"
+            echo "   3. Value: Your base64-encoded kubeconfig file"
+          else
+            echo "has-kube-config=true" >> $GITHUB_OUTPUT
+            echo "✅ KUBE_CONFIG secret is configured"
+          fi
+
   deploy-staging:
     runs-on: ubuntu-latest
     environment: staging
-    continue-on-error: true  # Allow failures for testing
+    needs: check-deployment-readiness
+    if: ${{ needs.check-deployment-readiness.outputs.has-kube-config == 'true' }}
 
     steps:
       - name: Checkout code
@@ -18,37 +39,32 @@ jobs:
       - name: Validate prerequisites
         run: |
           echo "🔍 Validating deployment prerequisites..."
-          
-          # Check for required secrets (warning only, not blocking for testing)
+
+          # Check for required secrets
           if [ -z "${{ secrets.KUBE_CONFIG }}" ]; then
-            echo "::warning::KUBE_CONFIG secret is not set. Deployment will fail without valid kubeconfig."
-            echo "📝 To fix: Go to Settings → Secrets and variables → Actions → New repository secret"
-            echo "   Name: KUBE_CONFIG"
-            echo "   Value: Your base64-encoded kubeconfig file"
+            echo "::error::KUBE_CONFIG secret is not set. Skipping deployment."
+            exit 1
           else
             echo "✅ KUBE_CONFIG secret is configured"
           fi
-          
+
           # Check for required variables
           if [ -z "${{ vars.REGISTRY }}" ]; then
-            echo "::error::REGISTRY variable is not set. This is required for deployment."
-            echo "📝 To fix: Go to Settings → Secrets and variables → Actions → Variables → New repository variable"
-            echo "   Name: REGISTRY"
-            echo "   Value: ghcr.io/yourusername or docker.io/yourusername"
-            exit 1
+            echo "::warning::REGISTRY variable is not set. Using default."
+            echo "REGISTRY=docker.io" >> $GITHUB_ENV
           else
             echo "✅ REGISTRY variable is set to: ${{ vars.REGISTRY }}"
+            echo "REGISTRY=${{ vars.REGISTRY }}" >> $GITHUB_ENV
           fi
-          
+
           if [ -z "${{ vars.DOMAIN }}" ]; then
-            echo "::warning::DOMAIN variable is not set. Health checks will fail."
-            echo "📝 To fix: Go to Settings → Secrets and variables → Actions → Variables → New repository variable"
-            echo "   Name: DOMAIN"
-            echo "   Value: yourdomain.com"
+            echo "::warning::DOMAIN variable is not set. Health checks will be skipped."
+            echo "DOMAIN=" >> $GITHUB_ENV
           else
             echo "✅ DOMAIN variable is set to: ${{ vars.DOMAIN }}"
+            echo "DOMAIN=${{ vars.DOMAIN }}" >> $GITHUB_ENV
           fi
-          
+
           # Check for k8s files
           echo ""
           echo "📁 Checking Kubernetes manifest files..."
@@ -57,19 +73,19 @@ jobs:
             exit 1
           fi
           echo "✅ k8s/namespace.yaml exists"
-          
+
           if [ ! -f "k8s/configmap.yaml" ]; then
             echo "::error::k8s/configmap.yaml not found"
             exit 1
           fi
           echo "✅ k8s/configmap.yaml exists"
-          
+
           if [ ! -f "k8s/secrets.yaml" ]; then
             echo "::error::k8s/secrets.yaml not found"
             exit 1
           fi
           echo "✅ k8s/secrets.yaml exists"
-          
+
           echo ""
           echo "✅ All prerequisites validated"
 
@@ -155,10 +171,10 @@ jobs:
           echo "✅ Rollout completed successfully"
 
       - name: Run smoke tests
-        if: steps.configure-kubectl.outcome == 'success' && vars.DOMAIN != ''
+        if: env.DOMAIN != ''
         run: |
           echo "🧪 Running smoke tests..."
-          
+
           # Test health endpoint
           echo "Testing /health endpoint..."
           if curl -f --max-time 30 https://staging-support-api.${{ vars.DOMAIN }}/health; then
@@ -166,7 +182,7 @@ jobs:
           else
             echo "::warning::Health check failed (endpoint may not be ready yet)"
           fi
-          
+
           # Test docs endpoint
           echo "Testing /docs endpoint..."
           if curl -f --max-time 30 https://staging-support-api.${{ vars.DOMAIN }}/docs; then
@@ -219,8 +235,8 @@ jobs:
   deploy-production:
     runs-on: ubuntu-latest
     environment: production
-    needs: deploy-staging
-    if: always() && needs.deploy-staging.result == 'success'
+    needs: [check-deployment-readiness, deploy-staging]
+    if: always() && needs.check-deployment-readiness.outputs.has-kube-config == 'true' && needs.deploy-staging.result == 'success'
 
     steps:
       - name: Checkout code
