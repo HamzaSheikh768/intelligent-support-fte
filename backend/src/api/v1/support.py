@@ -129,35 +129,45 @@ async def get_ticket_status(
 ):
     """
     Get status and conversation history for a ticket.
-    
+
+    Accepts both UUID format and TK-YYYY-NNNNNN format.
+    Note: TK-YYYY-NNNNNN format is currently not supported as tickets use UUID.
+
     Args:
-        ticket_id: Ticket UUID
+        ticket_id: Ticket UUID (string format)
         session: Database session
-        
+
     Returns:
         TicketStatus: Ticket status and messages
-        
+
     Raises:
-        HTTPException: If ticket not found
+        HTTPException: If ticket not found or invalid format
     """
+    # Try to parse as UUID
     try:
         ticket_uuid = UUID(ticket_id)
     except ValueError:
+        # If it looks like TK-YYYY-NNNNNN format, explain it's not supported
+        if ticket_id.startswith("TK-"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ticket ID format not supported. Please use the UUID from the submission response (e.g., '550e8400-e29b-41d4-a716-446655440000'). The TK-YYYY-NNNNNN format shown in the UI is for display purposes only."
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid ticket ID format"
+            detail="Invalid ticket ID format. Must be a valid UUID."
         )
-    
+
     ticket = await get_ticket_by_id(session, ticket_uuid)
-    
+
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Ticket {ticket_id} not found"
         )
-    
+
     # TODO: Get messages for this ticket
-    
+
     return TicketStatus(
         ticket_id=str(ticket.id),
         status=ticket.status,
