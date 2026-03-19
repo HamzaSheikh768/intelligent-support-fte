@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useSearchParams, useRouter } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Ticket, Users, BarChart3, Activity, MessageSquare, Clock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,7 @@ import { getMetrics, getActivityFeed } from "@/lib/api/admin";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 
 /**
  * Admin Dashboard - Real-Time 4-Tab Interface
