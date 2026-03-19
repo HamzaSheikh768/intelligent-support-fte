@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ticket, Users, BarChart3, Activity, MessageSquare } from "lucide-react";
+import { Ticket, Users, BarChart3, Activity, MessageSquare, Clock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Ticket as TicketType, ChannelType, TicketStatus, TicketPriority, DashboardMetrics } from "@/types/admin";
 import Sidebar from "@/components/admin/Sidebar";
@@ -64,27 +64,55 @@ export default function AdminPage() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [activityFeed, setActivityFeed] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("tickets");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [connected, setConnected] = useState(true);
 
-  // Fetch initial metrics
+  // Fetch initial metrics and set up polling
   useEffect(() => {
-    getMetrics()
-      .then((data) => setMetrics(data))
-      .catch((err) => {
-        if (err.status !== 404) {
+    const fetchMetrics = async () => {
+      try {
+        const data = await getMetrics();
+        setMetrics(data);
+        setLastUpdated(new Date());
+        setConnected(true);
+      } catch (err) {
+        if ((err as any)?.status !== 404) {
           console.error("Failed to fetch dashboard metrics:", err);
+          setConnected(false);
         }
-      });
+      }
+    };
+
+    fetchMetrics();
+
+    // Poll every 5 seconds for real-time updates
+    const intervalId = setInterval(fetchMetrics, 5000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
-  // Fetch activity feed
+  // Fetch activity feed and set up polling
   useEffect(() => {
-    getActivityFeed(50)
-      .then((data) => setActivityFeed(data))
-      .catch((err) => {
-        if (err.status !== 404) {
+    const fetchActivity = async () => {
+      try {
+        const data = await getActivityFeed(50);
+        setActivityFeed(data);
+        setLastUpdated(new Date());
+        setConnected(true);
+      } catch (err) {
+        if ((err as any)?.status !== 404) {
           console.error("Failed to fetch activity feed:", err);
+          setConnected(false);
         }
-      });
+      }
+    };
+
+    fetchActivity();
+
+    // Poll every 5 seconds for real-time updates
+    const intervalId = setInterval(fetchActivity, 5000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   // Handle ticket click
@@ -132,13 +160,31 @@ export default function AdminPage() {
           className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50"
         >
           <div className="flex items-center justify-between h-16 px-6">
-            <div>
-              <h1 className="text-2xl font-bold font-heading text-foreground">
-                Admin Dashboard
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Real-time AI Customer Success monitoring
-              </p>
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-2xl font-bold font-heading text-foreground">
+                  Admin Dashboard
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Real-time AI Customer Success monitoring
+                </p>
+              </div>
+              {/* Connection Status */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/50 border border-border/50">
+                <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
+                <span className="text-xs text-muted-foreground">
+                  {connected ? "Connected" : "Disconnected"}
+                </span>
+              </div>
+              {/* Last Updated */}
+              {lastUpdated && (
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/50 border border-border/50">
+                  <Clock className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">
+                    {lastUpdated.toLocaleTimeString()}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-4">
