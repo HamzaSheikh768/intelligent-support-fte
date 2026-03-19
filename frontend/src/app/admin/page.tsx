@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSearchParams, useRouter } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Ticket, Users, BarChart3, Activity, MessageSquare, Clock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,6 +52,8 @@ const tabs = [
 ];
 
 export default function AdminPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -63,7 +65,23 @@ export default function AdminPage() {
   }>({});
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [activityFeed, setActivityFeed] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState("tickets");
+  
+  // Get active tab from URL query param, default to "tickets"
+  const [activeTab, setActiveTab] = useState(searchParams?.get("tab") || "tickets");
+
+  // Handle tab change - update URL query param
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    router.push(`/admin?tab=${tab}`, { scroll: false });
+  };
+
+  // Sync activeTab when URL changes
+  useEffect(() => {
+    const tab = searchParams?.get("tab") || "tickets";
+    if (tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [connected, setConnected] = useState(true);
 
@@ -208,7 +226,7 @@ export default function AdminPage() {
           <RealMetricsCards initialData={metrics || undefined} />
 
           {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

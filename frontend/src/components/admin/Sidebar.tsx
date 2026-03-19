@@ -7,6 +7,7 @@ import {
   Ticket,
   Users,
   BarChart3,
+  Activity,
   Settings,
   LogOut,
   ChevronLeft,
@@ -15,7 +16,7 @@ import {
   Menu,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
@@ -31,23 +32,23 @@ const navItems = [
   },
   {
     label: "All Tickets",
-    href: "/admin/tickets",
+    href: "/admin?tab=tickets",
     icon: Ticket,
   },
   {
     label: "Users",
-    href: "/admin/users",
+    href: "/admin?tab=users",
     icon: Users,
   },
   {
     label: "Analytics",
-    href: "/admin/analytics",
+    href: "/admin?tab=analytics",
     icon: BarChart3,
   },
   {
-    label: "Settings",
-    href: "/admin/settings",
-    icon: Settings,
+    label: "Live Activity",
+    href: "/admin?tab=activity",
+    icon: Activity,
   },
 ];
 
