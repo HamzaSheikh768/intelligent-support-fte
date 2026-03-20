@@ -205,18 +205,18 @@ async def get_activity_feed(
         # Get recent messages from customers
         result = await session.execute(
             select(Message)
-            .where(Message.sender == "customer")
+            .where(Message.role == "customer")
             .order_by(Message.created_at.desc())
             .limit(limit)
         )
         messages = result.scalars().all()
-        
+
         return [
             {
                 "id": str(msg.id),
-                "ticketId": str(msg.ticket_id),
+                "ticketId": str(msg.ticket_id) if msg.ticket_id else "",
                 "customerName": "Customer",
-                "channel": "whatsapp",
+                "channel": msg.channel,
                 "messageSnippet": msg.content[:100] if msg.content else "",
                 "sentiment": "neutral",
                 "sentimentScore": 0.5,
