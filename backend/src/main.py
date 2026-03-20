@@ -9,6 +9,7 @@ from .core.config import settings
 from .core.logging import setup_logging, get_logger
 from .database.session import init_db, cleanup_db
 from .api.routers import v1_router
+from .channels import whatsapp_handler, gmail_handler
 
 # Setup logging
 setup_logging()
@@ -54,6 +55,10 @@ app.add_middleware(
 
 # Include routers
 app.include_router(v1_router, prefix="/api")
+
+# Include channel webhooks (no prefix - they have their own paths)
+app.include_router(whatsapp_handler.router)
+app.include_router(gmail_handler.router)
 
 
 @app.get("/health")
