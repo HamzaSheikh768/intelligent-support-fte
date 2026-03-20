@@ -71,7 +71,7 @@ export async function getTickets(
   try {
     const params = new URLSearchParams({
       page: page.toString(),
-      pageSize: pageSize.toString(),
+      page_size: pageSize.toString(), // Changed from pageSize to page_size to match backend
     });
 
     if (filters.channel) params.append("channel", filters.channel);
@@ -84,6 +84,7 @@ export async function getTickets(
     );
     return response.data;
   } catch (error) {
+    console.error("Error fetching tickets:", error);
     return {
       items: [],
       total: 0,

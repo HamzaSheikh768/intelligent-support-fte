@@ -140,7 +140,7 @@ export default function AdminPage() {
     setModalOpen(true);
   };
 
-  // Handle filters
+  // Handle filters - trigger refetch in TicketsTable
   const handleApplyFilters = (newFilters: typeof filters) => {
     setFilters(newFilters);
   };
@@ -153,6 +153,13 @@ export default function AdminPage() {
   const handleUpdate = () => {
     getMetrics().then((data) => setMetrics(data));
   };
+
+  // Pass filters and refetch trigger to TicketsTable via context/props
+  const [ticketsKey, setTicketsKey] = useState(0); // Force refetch when filters change
+  
+  useEffect(() => {
+    setTicketsKey(prev => prev + 1);
+  }, [filters]);
 
   return (
     <motion.div
@@ -266,6 +273,7 @@ export default function AdminPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-2">
                     <TicketsTable
+                      key={ticketsKey}
                       filters={filters}
                       onTicketClick={handleTicketClick}
                     />
