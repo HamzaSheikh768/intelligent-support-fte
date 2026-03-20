@@ -127,9 +127,13 @@ async def get_tickets(
 ):
     """Get all tickets with filtering and pagination"""
     try:
-        # Build query
-        query = select(Ticket).join(Customer).order_by(Ticket.created_at.desc())
+        from sqlmodel import select
         
+        # Build query with explicit join
+        query = select(Ticket, Customer).join(
+            Customer, Ticket.customer_id == Customer.id
+        ).order_by(Ticket.created_at.desc())
+
         if channel:
             query = query.where(Ticket.source_channel == channel)
         if status:
@@ -144,7 +148,7 @@ async def get_tickets(
                     Ticket.category.ilike(f"%{search}%"),
                 )
             )
-        
+
         # Get total count
         count_query = select(func.count(Ticket.id))
         if channel:
@@ -153,25 +157,25 @@ async def get_tickets(
             count_query = count_query.where(Ticket.status == status)
         if priority:
             count_query = count_query.where(Ticket.priority == priority)
-        
+
         total_result = await session.execute(count_query)
         total = total_result.scalar() or 0
-        
+
         # Apply pagination
         offset = (page - 1) * page_size
         query = query.offset(offset).limit(page_size)
-        
+
         result = await session.execute(query)
-        tickets = result.scalars().all()
-        
+        rows = result.all()
+
         return {
             "items": [
                 {
                     "id": str(ticket.id),
                     "ticketId": f"TK-{ticket.id.hex[:8]}",
                     "customerId": str(ticket.customer_id),
-                    "customerName": ticket.customer.name if ticket.customer else "Unknown",
-                    "customerEmail": ticket.customer.email if ticket.customer else "unknown@example.com",
+                    "customerName": customer.name if customer else "Unknown",
+                    "customerEmail": customer.email if customer else "unknown@example.com",
                     "channel": ticket.source_channel,
                     "subject": ticket.category or "General",
                     "message": "",
@@ -184,7 +188,7 @@ async def get_tickets(
                     "tags": [],
                     "messages": [],
                 }
-                for ticket in tickets
+                for ticket, customer in rows
             ],
             "total": total,
             "page": page,
