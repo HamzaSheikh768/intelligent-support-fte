@@ -176,7 +176,7 @@ async def get_tickets(
                     "customerId": str(ticket.customer_id),
                     "customerName": customer.name if customer else "Unknown",
                     "customerEmail": customer.email if customer else "unknown@example.com",
-                    "channel": ticket.source_channel,
+                    "channel": ticket.source_channel.replace("_", ""),  # Convert web_form to webform
                     "subject": ticket.category or "General",
                     "message": "",
                     "status": ticket.status,
